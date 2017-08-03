@@ -1,7 +1,6 @@
 from flask import Flask, request, render_template
-from pymongo import MongoClient, DESCENDING
+from pymongo import MongoClient
 from py2neo import Graph
-# from flask.ext.mysql import MySQL
 import MySQLdb
 from datetime import datetime
 
@@ -51,6 +50,8 @@ def search():
     data_client = MongoClient()
     database = data_client.Hojabc
     videos = database.videos
+    global query_global
+    global TITLES
     query_global = query
     search_results = videos.find({'$text': {'$search': str(query)}}, {'score': {'$meta': "textScore"}}).sort(
         [('score', {'$meta': "textScore"})])
@@ -70,15 +71,15 @@ def search():
 @app.route('/<video_id>')
 def video(video_id):
     rank = 0
+    global TITLES
     for yo in TITLES:
         rank += 1
         if yo[0] == video_id:
             break
     string = "INSERT INTO search_logs (rank,search_query,video_id,time_stamp) VALUES(" + str(rank) + ',\'' + str(
-        query_global) + '\',\'' + str(video_id) + '\',\'' + str(datetime.now().strftime("%Y-%m-%d %H:%M:%S")) + '\')'
+        query_global) + '\',\'' + str(video_id) + '\',\'' + str(datetime.now().strftime("%Y-%m-%d::%H:%M:%S")) + '\')'
     print(string)
-    cur.execute(string)
-
+    cur.execute(string,[])
     data_client = MongoClient()
     database = data_client.Hojabc
     videos = database.videos
@@ -88,7 +89,7 @@ def video(video_id):
     for vid in active_video:
         titl = vid['videoInfo']['snippet']['localized']['title']
         thum = vid['videoInfo']['snippet']['thumbnails']['default']['url']
-    print(titl)
+
     rel_videos_a = list(get_matching_channel_videos(video_id))
     rel_videos_b = list(get_matching_desc_videos(video_id))
     rel_videos_c = list(get_matching_tags_videos(video_id))
@@ -101,7 +102,7 @@ def video(video_id):
         titles1.append([result[0]])
 
         rel_videos_a1.append(list(videos.find({"videoInfo.id": {'$regex': str(result[0])}})))
-    print("this is it",titles1)
+
     for result in rel_videos_b:
         index =0
         for yup in titles1:
@@ -124,7 +125,7 @@ def video(video_id):
             index =0
     titles = []
     for result in rel_videos_a1:
-        print result
+
         thumbnails1.append([result[0]['videoInfo']['snippet']['thumbnails']['default']['url'],result[0]['videoInfo']['snippet']['description'][0:200]])
         titles.append(([result[0]['videoInfo']['id'],result[0]['videoInfo']['snippet']['localized']['title']]))
     for result in rel_videos_b1:
@@ -133,7 +134,7 @@ def video(video_id):
     for result in rel_videos_c1:
         thumbnails1.append([result[0]['videoInfo']['snippet']['thumbnails']['default']['url'],result[0]['videoInfo']['snippet']['description'][0:200]])
         titles.append(([result[0]['videoInfo']['id'], result[0]['videoInfo']['snippet']['localized']['title']]))
-    print(titles1)
+
     return render_template('play_video.html', video_thumb=thum,
                            video=video_id, video_title=titl, related_vid=titles,thumb_dec = thumbnails1)
 
